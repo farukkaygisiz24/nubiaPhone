@@ -15,6 +15,22 @@ android {
         versionCode = 1
         versionName = "0.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val localProps = mutableMapOf<String, String>()
+        val localFile = rootProject.file("local.properties")
+        if (localFile.exists()) {
+            localFile.readLines().forEach { line ->
+                val t = line.trim()
+                if (t.isEmpty() || t.startsWith("#")) return@forEach
+                val i = t.indexOf('=')
+                if (i > 0) localProps[t.substring(0, i).trim()] = t.substring(i + 1).trim()
+            }
+        }
+        fun localOr(key: String, default: String) =
+            localProps[key]?.takeIf { it.isNotBlank() } ?: default
+        buildConfigField("String", "UPDATE_GITHUB_OWNER", "\"${localOr("update.github.owner", "YOUR_GITHUB_USER")}\"")
+        buildConfigField("String", "UPDATE_GITHUB_REPO", "\"${localOr("update.github.repo", "nubiaPhone")}\"")
+        buildConfigField("String", "UPDATE_APK_ASSET", "\"${localOr("update.apk.asset", "nubiaphone-release.apk")}\"")
     }
 
     buildTypes {
