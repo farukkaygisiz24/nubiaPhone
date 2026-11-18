@@ -76,4 +76,6 @@ dependencies {
 
 
     testImplementation("junit:junit:4.13.2")
+    // JVM unit tests: Android's org.json is not on the test classpath.
+    testImplementation("org.json:json:20240303")
 }
