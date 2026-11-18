@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -83,6 +86,11 @@
                 <action android:name="android.telecom.InCallService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".telecom.PreviewRingService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall" />
 
         <receiver
             android:name=".telecom.CallActionReceiver"
