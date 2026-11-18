@@ -1,5 +1,6 @@
 package com.nubiaphone.dialer.telecom
 
+import android.content.BroadcastReceiver
 import android.content.Intent
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -12,16 +13,26 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * leave the phone silent.
  *
  * Incoming: full UI when locked/screen-off; notification only while unlocked.
- * Outgoing / SIM pick: open the in-call screen directly.
+ * Volume keys while ringing silence the ringer even when only the notification is showing.
  */
 class CallService : InCallService() {
+    private var volumeReceiver: BroadcastReceiver? = null
+
     override fun onCreate() {
         super.onCreate()
         CallRegistry.service = this
         CallNotifier.attach(this)
+        volumeReceiver =
+            VolumeSilence.register(this) {
+                if (CallRegistry.calls.value.any { it.phase == CallPhase.Incoming }) {
+                    CallNotifier.silence(this)
+                }
+            }
     }
 
     override fun onDestroy() {
+        VolumeSilence.unregister(this, volumeReceiver)
+        volumeReceiver = null
         if (CallRegistry.service === this) CallRegistry.service = null
         super.onDestroy()
     }

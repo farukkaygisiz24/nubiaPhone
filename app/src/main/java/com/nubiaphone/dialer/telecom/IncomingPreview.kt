@@ -21,11 +21,15 @@ object IncomingPreview {
     const val CH = "incoming_preview"
     const val NOTIF_ID = 4202
 
+    @Volatile var silenced: Boolean = false
+        private set
+
     @Volatile private var tone: Ringtone? = null
     @Volatile private var vibrator: Vibrator? = null
 
     fun launch(context: Context, kind: String) {
         val app = context.applicationContext
+        silenced = false
         if (kind != "incoming") {
             app.startActivity(
                 InCallActivity.intent(app).putExtra(InCallActivity.EXTRA_PREVIEW, kind),
@@ -42,12 +46,21 @@ object IncomingPreview {
         }
     }
 
+    fun silence(context: Context) {
+        if (silenced) return
+        silenced = true
+        stopRingFromService()
+        PreviewRingService.refresh(context.applicationContext)
+    }
+
     fun dismiss(context: Context) {
+        silenced = false
         stopRingFromService()
         runCatching { PreviewRingService.stop(context.applicationContext) }
     }
 
     fun startRingFromService(context: Context) {
+        if (silenced) return
         stopRingFromService()
         tone =
             runCatching {

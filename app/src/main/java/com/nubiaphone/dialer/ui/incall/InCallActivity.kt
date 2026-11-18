@@ -31,9 +31,11 @@ import androidx.compose.runtime.setValue
 import com.nubiaphone.dialer.MainActivity
 import com.nubiaphone.dialer.data.PhoneActions
 import com.nubiaphone.dialer.telecom.AudioUi
+import com.nubiaphone.dialer.telecom.CallNotifier
 import com.nubiaphone.dialer.telecom.CallPhase
 import com.nubiaphone.dialer.telecom.CallRegistry
 import com.nubiaphone.dialer.telecom.CallUi
+import com.nubiaphone.dialer.telecom.IncomingPreview
 import com.nubiaphone.dialer.telecom.Participant
 import com.nubiaphone.dialer.ui.theme.NubiaPhoneTheme
 import kotlinx.coroutines.delay
@@ -45,6 +47,8 @@ import kotlinx.coroutines.delay
  */
 class InCallActivity : ComponentActivity() {
     private var proximity: PowerManager.WakeLock? = null
+    /** Preview incoming: volume key / swipe silence stops the local ringtone. */
+    private var stopPreviewRing: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,10 +92,17 @@ class InCallActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        val ringing = CallRegistry.calls.value.any { it.phase == CallPhase.Incoming }
-        if (ringing && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-            CallRegistry.silenceRinger(this)
-            return true
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            val liveRinging = CallRegistry.calls.value.any { it.phase == CallPhase.Incoming }
+            if (liveRinging) {
+                CallNotifier.silence(this)
+                return true
+            }
+            if (intent.getStringExtra(EXTRA_PREVIEW) == "incoming") {
+                stopPreviewRing?.invoke()
+                IncomingPreview.silence(this)
+                return true
+            }
         }
         return super.onKeyDown(keyCode, event)
     }
@@ -230,6 +241,10 @@ class InCallActivity : ComponentActivity() {
         var route by remember { mutableStateOf(CallAudioState.ROUTE_EARPIECE) }
         var nextId by remember { mutableStateOf(10) }
         var ringOn by remember { mutableStateOf(ring) }
+        DisposableEffect(Unit) {
+            stopPreviewRing = { ringOn = false }
+            onDispose { stopPreviewRing = null }
+        }
 
         // Preview incoming: default ringtone + vibrate until silence / answer / decline.
         DisposableEffect(ringOn) {

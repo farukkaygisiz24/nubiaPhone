@@ -21,6 +21,7 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * Call notifications. Incoming: CallStyle with Reddet / Cevapla.
  * Keyguard locked (or screen off) → full in-call UI (activity / full-screen intent).
  * Unlocked + screen on → heads-up notification only (no takeover).
+ * Volume key or swipe-dismiss → silence ringtone; notification stays so the call can still be answered.
  * Ongoing: name + running timer + "Kapat". Ringing sound stays with Telecom.
  */
 object CallNotifier {
@@ -28,10 +29,30 @@ object CallNotifier {
     private const val CH_ONGOING = "ongoing_call"
     private const val NOTIF_ID = 4201
 
+    /** User silenced via volume / notification swipe; keep a quiet notification. */
+    @Volatile
+    var ringerSilenced: Boolean = false
+        private set
+
     fun attach(context: Context) {
         val app = context.applicationContext
         createChannels(app)
-        CallRegistry.onChanged = { ctx, calls -> update(ctx, calls) }
+        CallRegistry.onChanged = { ctx, calls ->
+            if (calls.none { it.phase == CallPhase.Incoming }) ringerSilenced = false
+            update(ctx, calls)
+        }
+    }
+
+    fun silence(context: Context) {
+        if (ringerSilenced) return
+        ringerSilenced = true
+        CallRegistry.silenceRinger(context)
+        appUpdate(context)
+    }
+
+    private fun appUpdate(context: Context) {
+        val app = context.applicationContext
+        update(app, CallRegistry.calls.value)
     }
 
     /**
@@ -95,6 +116,11 @@ object CallNotifier {
         try {
             if (notification == null) nm.cancel(NOTIF_ID) else nm.notify(NOTIF_ID, notification)
         } catch (_: SecurityException) {
+        } catch (_: IllegalArgumentException) {
+            // CallStyle without FSI/FGS can be rejected on some builds; fall back below.
+            if (incoming != null) {
+                runCatching { nm.notify(NOTIF_ID, incomingFallback(context, incoming)) }
+            }
         }
     }
 
@@ -116,26 +142,30 @@ object CallNotifier {
         )
     }
 
-    private fun broadcast(context: Context, action: String, id: Int): PendingIntent =
+    private fun broadcast(context: Context, action: String, id: Int = -1): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             action.hashCode(),
             Intent(context, CallActionReceiver::class.java).setAction(action).putExtra(InCallActivity.EXTRA_CALL_ID, id),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
 
     private fun incoming(context: Context, call: CallUi): android.app.Notification {
         val open = openScreen(context, call.id)
+        val silenced = ringerSilenced
         val builder =
             NotificationCompat.Builder(context, CH_INCOMING)
                 .setSmallIcon(R.drawable.ic_stat_call)
                 .setContentTitle(call.title)
-                .setContentText("Gelen arama")
+                .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setOngoing(true)
+                // While ringing loudly, allow swipe-away (silence). After silence, pin it.
+                .setOngoing(silenced)
+                .setOnlyAlertOnce(silenced)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(open)
+                .setDeleteIntent(broadcast(context, CallActionReceiver.SILENCE, call.id))
                 .setStyle(
                     NotificationCompat.CallStyle.forIncomingCall(
                         person(call),
@@ -143,11 +173,27 @@ object CallNotifier {
                         openScreen(context, call.id, answer = true),
                     ),
                 )
-        // Full-screen takeover while locked/off; unlocked stays notification-only.
-        if (canAlert(context)) {
+        if (canAlert(context) && !silenced) {
             builder.setFullScreenIntent(open, true)
         }
         return builder.build()
+    }
+
+    private fun incomingFallback(context: Context, call: CallUi): android.app.Notification {
+        val silenced = ringerSilenced
+        return NotificationCompat.Builder(context, CH_INCOMING)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle(call.title)
+            .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setOngoing(silenced)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(openScreen(context, call.id))
+            .setDeleteIntent(broadcast(context, CallActionReceiver.SILENCE, call.id))
+            .addAction(0, "Reddet", broadcast(context, CallActionReceiver.DECLINE, call.id))
+            .addAction(0, "Cevapla", openScreen(context, call.id, answer = true))
+            .build()
     }
 
     private fun ongoing(context: Context, call: CallUi): android.app.Notification {
