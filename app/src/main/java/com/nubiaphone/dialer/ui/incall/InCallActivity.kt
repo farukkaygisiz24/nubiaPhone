@@ -3,9 +3,15 @@ package com.nubiaphone.dialer.ui.incall
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.telecom.CallAudioState
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -214,6 +220,30 @@ class InCallActivity : ComponentActivity() {
         var muted by remember { mutableStateOf(false) }
         var route by remember { mutableStateOf(CallAudioState.ROUTE_EARPIECE) }
         var nextId by remember { mutableStateOf(10) }
+        var ringOn by remember { mutableStateOf(kind == "incoming") }
+
+        // Preview incoming: default ringtone + vibrate until silence / answer / decline.
+        DisposableEffect(ringOn) {
+            if (!ringOn) return@DisposableEffect onDispose { }
+            val tone =
+                runCatching {
+                    val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    RingtoneManager.getRingtone(this@InCallActivity, uri)?.also { r ->
+                        r.audioAttributes =
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                                .build()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) r.isLooping = true
+                        r.play()
+                    }
+                }.getOrNull()
+            val vibrator = startPreviewVibrate()
+            onDispose {
+                runCatching { tone?.stop() }
+                vibrator?.cancel()
+            }
+        }
 
         // A fake outgoing call connects after ~2 s.
         LaunchedEffect(fakes.any { it.phase == CallPhase.Dialing }) {
@@ -261,12 +291,26 @@ class InCallActivity : ComponentActivity() {
             accounts = emptyList(),
             actions =
                 InCallActions(
-                    answer = { setPhase(it, CallPhase.Active); fakes = fakes.map { f -> if (f.id == it) f.copy(connect = System.currentTimeMillis()) else f } },
-                    decline = { finish() },
-                    replyWithMessage = { finish() },
-                    quickReply = { _, _ -> finish() },
-                    silence = {},
+                    answer = {
+                        ringOn = false
+                        setPhase(it, CallPhase.Active)
+                        fakes = fakes.map { f -> if (f.id == it) f.copy(connect = System.currentTimeMillis()) else f }
+                    },
+                    decline = {
+                        ringOn = false
+                        finish()
+                    },
+                    replyWithMessage = {
+                        ringOn = false
+                        finish()
+                    },
+                    quickReply = { _, _ ->
+                        ringOn = false
+                        finish()
+                    },
+                    silence = { ringOn = false },
                     hangUp = { id ->
+                        ringOn = false
                         // Ending the current call leaves the held one on screen ("Devam" to resume).
                         fakes = if (id == CONF_ID) fakes.filterNot { it.id in conf } else fakes.filterNot { it.id == id }
                         if (id == CONF_ID) conf = emptySet()
@@ -307,6 +351,26 @@ class InCallActivity : ComponentActivity() {
                     },
                 ),
         )
+    }
+
+    /** Ringtone-style vibrate pattern for the incoming preview. */
+    private fun startPreviewVibrate(): Vibrator? {
+        val vibrator =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                getSystemService(Vibrator::class.java)
+            } ?: return null
+        if (!vibrator.hasVibrator()) return null
+        val pattern = longArrayOf(0, 1000, 1000)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(pattern, 0)
+        }
+        return vibrator
     }
 
     companion object {
