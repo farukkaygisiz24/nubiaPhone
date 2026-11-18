@@ -126,6 +126,10 @@ fun SettingsScreen(
                 }
                 item {
                     MyOsCard {
+                        SettingRow("Güncellemeleri kontrol et", null) {
+                            (context as? com.nubiaphone.dialer.MainActivity)?.requestUpdateCheck()
+                        }
+                        Line()
                         SettingRow("Hakkında", "Telefon ${BuildConfig.VERSION_NAME}", chevron = false) {}
                     }
                 }

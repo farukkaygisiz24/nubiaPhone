@@ -7,9 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -17,10 +19,19 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.nubiaphone.dialer.ui.navigation.NubiaPhoneNav
 import com.nubiaphone.dialer.ui.theme.NubiaPhoneTheme
+import com.nubiaphone.dialer.ui.update.UpdatePromptHost
 
 class MainActivity : ComponentActivity() {
     /** Number handed over by a DIAL / tel: intent; the home screen opens the keypad with it. */
     private var dialRequest by mutableStateOf<String?>(null)
+
+    /** Bumped from Settings “Güncellemeleri kontrol et”. */
+    var updateCheckTick by mutableIntStateOf(0)
+        private set
+
+    fun requestUpdateCheck() {
+        updateCheckTick++
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
@@ -34,14 +45,18 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) handleIntent(intent)
         setContent {
             NubiaPhoneTheme {
-                NubiaPhoneNav(
-                    dialRequest = dialRequest,
-                    onDialConsumed = { dialRequest = null },
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background),
-                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    NubiaPhoneNav(
+                        dialRequest = dialRequest,
+                        onDialConsumed = { dialRequest = null },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    UpdatePromptHost(manualCheckTick = updateCheckTick)
+                }
             }
         }
     }
