@@ -158,10 +158,8 @@ fun DialpadPanel(
                 thickness = 0.5.dp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
             )
-        } else {
-            Spacer(Modifier.height(8.dp))
         }
-        // Full-bleed number strip so the long-press ripple runs edge-to-edge on the panel.
+        // Full-bleed number strip: no top spacer — ripple meets the panel's rounded top edge.
         NumberLine(
             number = number,
             onBackspace = {
@@ -260,8 +258,9 @@ private fun NumberLine(
             else -> 32.sp
         }
     val numberInteraction = remember { MutableInteractionSource() }
-    Box(Modifier.fillMaxWidth().height(64.dp)) {
-        // Edge-to-edge ripple across the dial panel width.
+    // Tall enough that, with no suggestions above, the strip fills into the panel top curve.
+    Box(Modifier.fillMaxWidth().height(72.dp)) {
+        // Edge-to-edge ripple across the dial panel width (clipped by PanelShape).
         Box(
             Modifier
                 .fillMaxSize()
