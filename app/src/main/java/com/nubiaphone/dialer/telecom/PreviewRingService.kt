@@ -135,7 +135,7 @@ class PreviewRingService : Service() {
                 .setShowWhen(true)
                 .setContentIntent(openActive)
                 .addAction(0, if (IncomingPreview.speakerOn) "Kulaklık" else "Hoparlöre al", speaker)
-                .addAction(0, if (IncomingPreview.muted) "Mikrofonu aç" else "Mikrofon sessiz", mute)
+                .addAction(0, if (IncomingPreview.muted) "Mic. aç" else "Mic. sessiz", mute)
                 .addAction(0, "Kapat", hangUp)
                 .build()
         }

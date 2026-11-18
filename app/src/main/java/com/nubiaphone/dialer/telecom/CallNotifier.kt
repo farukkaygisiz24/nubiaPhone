@@ -238,7 +238,7 @@ object CallNotifier {
             )
             .addAction(
                 0,
-                if (audio.muted) "Mikrofonu aç" else "Mikrofon sessiz",
+                if (audio.muted) "Mic. aç" else "Mic. sessiz",
                 broadcast(context, CallActionReceiver.TOGGLE_MUTE, call.id),
             )
             .addAction(0, "Kapat", broadcast(context, CallActionReceiver.HANG_UP, call.id))
