@@ -168,8 +168,16 @@ fun HomeScreen(
         CallLogStore.refresh(context)
         onPauseOrDispose { }
     }
-    val calls = rememberCallController(snackbar, onInfo = { onOpenCall(it.key) })
     val contactNav = LocalContactNav.current
+    // (i): known contact → contact card; unknown → call history page.
+    val calls =
+        rememberCallController(
+            snackbar,
+            onInfo = { group ->
+                val contact = group.contact
+                if (contact != null) contactNav.open(contact.contactId) else onOpenCall(group.key)
+            },
+        )
     val contacts by ContactsStore.contacts.collectAsState()
     LifecycleResumeEffect(Unit) {
         ContactsStore.refresh(context)

@@ -67,7 +67,15 @@ fun SearchScreen(
     LaunchedEffect(Unit) { focus.requestFocus() }
     val days by CallLogStore.days.collectAsState()
     val snackbar = remember { SnackbarHostState() }
-    val calls = rememberCallController(snackbar, onInfo = { onOpenCall(it.key) })
+    val contactNav = LocalContactNav.current
+    val calls =
+        rememberCallController(
+            snackbar,
+            onInfo = { group ->
+                val contact = group.contact
+                if (contact != null) contactNav.open(contact.contactId) else onOpenCall(group.key)
+            },
+        )
 
     val results =
         remember(days, query) {
@@ -86,7 +94,6 @@ fun SearchScreen(
             }
         }
     val people by ContactsStore.contacts.collectAsState()
-    val contactNav = LocalContactNav.current
     val contactResults =
         remember(people, query) {
             val q = query.trim()
