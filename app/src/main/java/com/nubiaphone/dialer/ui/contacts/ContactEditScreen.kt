@@ -55,6 +55,7 @@ import com.nubiaphone.dialer.data.ContactsStore
 import com.nubiaphone.dialer.data.EmailItem
 import com.nubiaphone.dialer.data.PhoneItem
 import com.nubiaphone.dialer.data.SaveTarget
+import com.nubiaphone.dialer.data.formatPersonName
 import com.nubiaphone.dialer.ui.components.MyOsCard
 import com.nubiaphone.dialer.ui.components.MyOsMenuItem
 import com.nubiaphone.dialer.ui.components.MyOsPopupMenu
@@ -116,8 +117,8 @@ fun ContactEditScreen(
             val d = withContext(Dispatchers.IO) { ContactsStore.detail(context, contactId) }
             existing = d
             if (d != null) {
-                given = d.givenName.ifBlank { if (d.familyName.isBlank()) d.name else "" }
-                family = d.familyName
+                given = formatPersonName(d.givenName.ifBlank { if (d.familyName.isBlank()) d.name else "" })
+                family = formatPersonName(d.familyName)
                 phones.addAll(d.phones)
                 emails.addAll(d.emails)
             }
@@ -198,9 +199,9 @@ fun ContactEditScreen(
             ) {
                 item(key = "name") {
                     MyOsCard {
-                        Field(given, { given = it }, "Ad")
+                        Field(given, { given = formatPersonName(it) }, "Ad")
                         Line()
-                        Field(family, { family = it }, "Soyad")
+                        Field(family, { family = formatPersonName(it) }, "Soyad")
                     }
                 }
                 item(key = "phones") {
