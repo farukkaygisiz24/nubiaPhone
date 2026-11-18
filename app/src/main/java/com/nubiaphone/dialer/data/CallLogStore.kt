@@ -246,9 +246,6 @@ fun numberKey(number: String): String {
     return if (digits.length > 10) digits.takeLast(10) else digits
 }
 
-fun formatPhone(number: String): String =
-    PhoneNumberUtils.formatNumber(number, "TR") ?: number
-
 private fun startOfDay(millis: Long): Long =
     Calendar.getInstance().run {
         timeInMillis = millis

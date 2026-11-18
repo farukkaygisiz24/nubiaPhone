@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import com.nubiaphone.dialer.data.CallLogStore
 import com.nubiaphone.dialer.data.ContactsStore
 import com.nubiaphone.dialer.data.formatPhone
+import com.nubiaphone.dialer.data.mapDigitRange
 import com.nubiaphone.dialer.ui.components.ContactAvatar
 import com.nubiaphone.dialer.ui.components.MyOsFab
 import com.nubiaphone.dialer.ui.components.MyOsMenuItem
@@ -390,6 +391,8 @@ private fun Suggestions(
     Column(modifier.fillMaxWidth()) {
         matches.forEachIndexed { i, m ->
             key(m.number) {
+                val shownNumber = formatPhone(m.number)
+                val numberHighlight = mapDigitRange(m.number, shownNumber, m.numberRange)
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -402,7 +405,12 @@ private fun Suggestions(
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = if (m.name != null) mark(m.name, m.nameRange, accent) else mark(m.number, m.numberRange, accent),
+                            text =
+                                if (m.name != null) {
+                                    mark(m.name, m.nameRange, accent)
+                                } else {
+                                    mark(shownNumber, numberHighlight, accent)
+                                },
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -410,7 +418,7 @@ private fun Suggestions(
                         )
                         if (m.name != null) {
                             Text(
-                                text = mark(m.number, m.numberRange, accent),
+                                text = mark(shownNumber, numberHighlight, accent),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
