@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Build
@@ -11,6 +12,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import com.nubiaphone.dialer.ui.incall.InCallActivity
+import com.nubiaphone.dialer.ui.incall.IncomingHeadsUpActivity
 
 /**
  * Dev / adb fake incoming call that follows the same lock policy as a real ring:
@@ -43,19 +45,21 @@ object IncomingPreview {
             )
         } else {
             PreviewRingService.start(app)
+            app.startActivity(IncomingHeadsUpActivity.intentPreview(app))
         }
     }
 
     fun silence(context: Context) {
         if (silenced) return
         silenced = true
-        stopRingFromService()
+        stopRingFromService(context)
         PreviewRingService.refresh(context.applicationContext)
+        runCatching { IncomingHeadsUpActivity.finishExisting(context.applicationContext) }
     }
 
     fun dismiss(context: Context) {
         silenced = false
-        stopRingFromService()
+        stopRingFromService(context)
         runCatching { PreviewRingService.stop(context.applicationContext) }
     }
 
@@ -96,11 +100,20 @@ object IncomingPreview {
             }.getOrNull()
     }
 
-    fun stopRingFromService() {
+    fun stopRingFromService(context: Context? = null) {
         runCatching { tone?.stop() }
         tone = null
         vibrator?.cancel()
         vibrator = null
+        // Belt-and-suspenders: some OEMs keep a system ringtone cue after Ringtone.stop().
+        context?.getSystemService(AudioManager::class.java)?.let { am ->
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0)
+                    am.adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0)
+                }
+            }
+        }
     }
 
     private fun createChannel(context: Context) {

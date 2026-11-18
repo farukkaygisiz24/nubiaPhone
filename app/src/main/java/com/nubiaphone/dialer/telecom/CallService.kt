@@ -6,6 +6,7 @@ import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
 import com.nubiaphone.dialer.ui.incall.InCallActivity
+import com.nubiaphone.dialer.ui.incall.IncomingHeadsUpActivity
 
 /**
  * Telecom binds this while nubiaPhone is the default phone app and a call exists. Ringing
@@ -40,11 +41,27 @@ class CallService : InCallService() {
     override fun onCallAdded(call: Call) {
         CallRegistry.add(this, call)
         val phase = CallRegistry.phaseOf(call)
-        val showNow =
-            phase == CallPhase.Dialing ||
-                phase == CallPhase.SelectAccount ||
-                (phase == CallPhase.Incoming && CallNotifier.shouldShowIncomingUi(this))
-        if (showNow) startActivity(InCallActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        when {
+            phase == CallPhase.Dialing || phase == CallPhase.SelectAccount ->
+                startActivity(InCallActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            phase == CallPhase.Incoming && CallNotifier.shouldShowIncomingUi(this) ->
+                startActivity(InCallActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            phase == CallPhase.Incoming -> {
+                // Unlocked: shade notification + swipe-up banner (HUN swipe-up alone won't silence).
+                val ui = CallRegistry.calls.value.firstOrNull { it.phase == CallPhase.Incoming }
+                if (ui != null) {
+                    startActivity(
+                        IncomingHeadsUpActivity.intentLive(
+                            this,
+                            title = ui.title,
+                            subtitle = "Gelen arama · yukarı kaydır: sessiz",
+                            photo = ui.photoUri,
+                            callId = ui.id,
+                        ),
+                    )
+                }
+            }
+        }
     }
 
     override fun onCallRemoved(call: Call) {
