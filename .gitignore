@@ -1,0 +1,20 @@
+# Android
+*.iml
+.gradle/
+local.properties
+!local.properties.example
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+
+
+
