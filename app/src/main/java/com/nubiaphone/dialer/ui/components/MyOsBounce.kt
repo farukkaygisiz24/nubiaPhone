@@ -3,6 +3,7 @@ package com.nubiaphone.dialer.ui.components
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -38,23 +39,45 @@ private val MaxOvershoot = 66.dp
 private val MaxDrag = 110.dp
 private const val DRAG_RESISTANCE = 0.28f
 
+/** Shared bounce for a scroll container; [offset] is >0 when pulled down at the top. */
+class MyOsBounceState internal constructor(
+    internal val connection: BounceConnection,
+    val maxDragPx: Float,
+) {
+    /** Snapshot-backed; reading in composition recomposes while the spring runs. */
+    val offset: Float
+        get() = connection.offset.value
+}
+
+@Composable
+fun rememberMyOsBounce(): MyOsBounceState {
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    return remember(density) {
+        with(density) {
+            MyOsBounceState(
+                BounceConnection(scope, MaxOvershoot.toPx(), MaxDrag.toPx()),
+                maxDragPx = MaxDrag.toPx(),
+            )
+        }
+    }
+}
+
 /** Put on a vertical scroll container (LazyColumn / verticalScroll) to get the MyOS bounce. */
 fun Modifier.myOsBounce(): Modifier =
     composed {
-        val density = LocalDensity.current
-        val scope = rememberCoroutineScope()
-        val connection =
-            remember(density) {
-                with(density) { BounceConnection(scope, MaxOvershoot.toPx(), MaxDrag.toPx()) }
-            }
-        // Clip first: the list slides under the title / search bar, never over them.
-        this
-            .clipToBounds()
-            .nestedScroll(connection)
-            .graphicsLayer { translationY = connection.offset.value }
+        val state = rememberMyOsBounce()
+        myOsBounce(state)
     }
 
-private class BounceConnection(
+/** Same bounce, with a shared [state] so callers can react to overscroll (e.g. grow a header). */
+fun Modifier.myOsBounce(state: MyOsBounceState): Modifier =
+    this
+        .clipToBounds()
+        .nestedScroll(state.connection)
+        .graphicsLayer { translationY = state.connection.offset.value }
+
+internal class BounceConnection(
     private val scope: CoroutineScope,
     private val maxOvershootPx: Float,
     private val maxDragPx: Float,

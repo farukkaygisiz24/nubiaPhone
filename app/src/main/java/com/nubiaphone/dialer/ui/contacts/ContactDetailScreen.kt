@@ -52,6 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +71,7 @@ import com.nubiaphone.dialer.ui.components.MyOsSnackbarHost
 import com.nubiaphone.dialer.ui.components.NubiaPhoneTopBar
 import com.nubiaphone.dialer.ui.components.myOsBounce
 import com.nubiaphone.dialer.ui.components.myOsDanger
+import com.nubiaphone.dialer.ui.components.rememberMyOsBounce
 import com.nubiaphone.dialer.ui.recents.HistoryRow
 import com.nubiaphone.dialer.ui.recents.rememberCallController
 import com.nubiaphone.dialer.ui.theme.MyOsCardShape
@@ -163,12 +166,27 @@ fun ContactDetailScreen(
                 remember(c) {
                     c.phones.flatMap { CallLogStore.callsFor(it.number) }.distinctBy { it.id }.sortedByDescending { it.dateMillis }.take(5)
                 }
+            val bounce = rememberMyOsBounce()
+            // Pull-down at top: grow avatar + name into the bounce gap (0 → ~1).
+            val pull = (bounce.offset.coerceAtLeast(0f) / bounce.maxDragPx).coerceIn(0f, 1f)
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).myOsBounce(),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).myOsBounce(bounce),
                 contentPadding = PaddingValues(bottom = 32.dp),
             ) {
                 item(key = "head") {
-                    Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 20.dp)
+                            .graphicsLayer {
+                                val scale = 1f + 0.48f * pull
+                                scaleX = scale
+                                scaleY = scale
+                                // Grow upward into the empty bounce band under the top bar.
+                                transformOrigin = TransformOrigin(0.5f, 1f)
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         ContactAvatar(photoUri = c.photoUri, name = c.name, size = 72.dp)
                         Spacer(Modifier.height(12.dp))
                         Text(
