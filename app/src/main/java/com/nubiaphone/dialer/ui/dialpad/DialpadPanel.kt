@@ -71,7 +71,6 @@ import com.nubiaphone.dialer.ui.components.ContactAvatar
 import com.nubiaphone.dialer.ui.components.MyOsFab
 import com.nubiaphone.dialer.ui.components.MyOsMenuItem
 import com.nubiaphone.dialer.ui.components.MyOsPopupMenu
-import com.nubiaphone.dialer.ui.theme.MyOsCardShape
 
 private val Keys =
     listOf(
@@ -95,7 +94,7 @@ private val Tones =
  *   keys    MyOS lock-screen PIN: 32dp digits, 66.5dp rows, 30dp side inset, ≤298dp wide
  *   letters not measurable on MyOS: 11sp secondary under the digit
  *   call    64dp accent circle (mfvc_floating_button_size), white icon, accent glow
- * Above the panel, over the dimmed page: a card with up to four T9 / number suggestions.
+ * T9 / number suggestions sit inside the same panel (not a floating card above it).
  */
 private val PanelShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 private val PanelDark = Color(0xFF232323)
@@ -126,30 +125,36 @@ fun DialpadPanel(
         tones.play(c)
     }
 
-    Column(Modifier.fillMaxWidth()) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(PanelShape)
+            .background(if (dark) PanelDark else Color.White)
+            // Swallow taps so they do not reach the scrim behind the panel.
+            .pointerInput(Unit) { detectTapGestures { } }
+            .navigationBarsPadding()
+            .padding(bottom = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         if (matches.isNotEmpty()) {
             Suggestions(
                 matches = matches,
                 onPick = { onCall(it) },
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
             )
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+            )
+        } else {
+            Spacer(Modifier.height(8.dp))
         }
         Column(
             Modifier
-                .fillMaxWidth()
-                .clip(PanelShape)
-                .background(if (dark) PanelDark else Color.White)
-                // Swallow taps so they do not reach the scrim behind the panel.
-                .pointerInput(Unit) { detectTapGestures { } }
-                .navigationBarsPadding()
-                .padding(top = 8.dp, bottom = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .widthIn(max = 298.dp + 60.dp)
+                .padding(horizontal = 30.dp),
         ) {
-            Column(
-                Modifier
-                    .widthIn(max = 298.dp + 60.dp)
-                    .padding(horizontal = 30.dp),
-            ) {
                 NumberLine(
                     number = number,
                     onBackspace = {
@@ -220,7 +225,6 @@ fun DialpadPanel(
                     }
                     Box(Modifier.weight(1f))
                 }
-            }
         }
     }
 }
@@ -375,7 +379,7 @@ private fun Key(
     }
 }
 
-/** Up to four matches in one card group above the panel. Tap calls the number. */
+/** Up to four matches at the top of the dial panel. Tap calls the number. */
 @Composable
 private fun Suggestions(
     matches: List<DialMatch>,
@@ -383,50 +387,44 @@ private fun Suggestions(
     modifier: Modifier,
 ) {
     val accent = MaterialTheme.colorScheme.primary
-    Column(
-        modifier
-            .fillMaxWidth()
-            .clip(MyOsCardShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .pointerInput(Unit) { detectTapGestures { } },
-    ) {
+    Column(modifier.fillMaxWidth()) {
         matches.forEachIndexed { i, m ->
             key(m.number) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 60.dp)
-                    .clickable { onPick(m.number) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ContactAvatar(photoUri = m.photoUri, name = m.name)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = if (m.name != null) mark(m.name, m.nameRange, accent) else mark(m.number, m.numberRange, accent),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (m.name != null) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .clickable { onPick(m.number) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ContactAvatar(photoUri = m.photoUri, name = m.name)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
                         Text(
-                            text = mark(m.number, m.numberRange, accent),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = if (m.name != null) mark(m.name, m.nameRange, accent) else mark(m.number, m.numberRange, accent),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
+                        if (m.name != null) {
+                            Text(
+                                text = mark(m.number, m.numberRange, accent),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                        }
                     }
                 }
-            }
-            if (i != matches.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 64.dp, end = 16.dp),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                )
-            }
+                if (i != matches.lastIndex) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 64.dp, end = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                    )
+                }
             }
         }
     }
