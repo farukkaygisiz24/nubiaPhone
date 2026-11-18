@@ -214,7 +214,7 @@ object CallNotifier {
             }
         val audio = CallRegistry.audio.value
         val speaker = audio.route == android.telecom.CallAudioState.ROUTE_SPEAKER
-        val person = person(call)
+        // Plain actions (not CallStyle): OEM CallStyle often hides extra buttons.
         return NotificationCompat.Builder(context, CH_ONGOING)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle(call.title)
@@ -231,23 +231,17 @@ object CallNotifier {
                     setShowWhen(true)
                 }
             }
-            .setStyle(
-                NotificationCompat.CallStyle.forOngoingCall(
-                    person,
-                    broadcast(context, CallActionReceiver.HANG_UP, call.id),
-                ),
-            )
-            // CallStyle already shows Kapat; add the two in-call toggles beside it.
             .addAction(
                 0,
-                if (speaker) "Kulaklık" else "Hoparlör",
+                if (speaker) "Kulaklık" else "Hoparlöre al",
                 broadcast(context, CallActionReceiver.TOGGLE_SPEAKER, call.id),
             )
             .addAction(
                 0,
-                if (audio.muted) "Ses aç" else "Sessiz",
+                if (audio.muted) "Mikrofonu aç" else "Mikrofon sessiz",
                 broadcast(context, CallActionReceiver.TOGGLE_MUTE, call.id),
             )
+            .addAction(0, "Kapat", broadcast(context, CallActionReceiver.HANG_UP, call.id))
             .build()
     }
 }

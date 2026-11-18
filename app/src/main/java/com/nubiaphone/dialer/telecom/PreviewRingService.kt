@@ -134,9 +134,9 @@ class PreviewRingService : Service() {
                 .setWhen(connected)
                 .setShowWhen(true)
                 .setContentIntent(openActive)
-                .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
-                .addAction(0, if (IncomingPreview.speakerOn) "Kulaklık" else "Hoparlör", speaker)
-                .addAction(0, if (IncomingPreview.muted) "Ses aç" else "Sessiz", mute)
+                .addAction(0, if (IncomingPreview.speakerOn) "Kulaklık" else "Hoparlöre al", speaker)
+                .addAction(0, if (IncomingPreview.muted) "Mikrofonu aç" else "Mikrofon sessiz", mute)
+                .addAction(0, "Kapat", hangUp)
                 .build()
         }
 
