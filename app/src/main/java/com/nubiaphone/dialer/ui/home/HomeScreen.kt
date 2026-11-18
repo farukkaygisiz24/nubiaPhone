@@ -188,13 +188,15 @@ fun HomeScreen(
         Scaffold(
             floatingActionButton = {
                 if (!dialpadOpen && selection == null) {
-                    // Saat: 48dp accent circle, centred, 28dp above the tab bar (16 + 12).
+                    // Slightly larger than Saat's 48dp; sits closer to the tab bar.
                     // Never moves for a snackbar (user request): the bar simply covers it.
                     MyOsFab(
                         icon = Icons.Filled.Dialpad,
                         contentDescription = "Tuş takımı",
                         onClick = { dialpadOpen = true },
-                        modifier = Modifier.padding(bottom = 12.dp),
+                        size = 52.dp,
+                        iconSize = 24.dp,
+                        modifier = Modifier.padding(bottom = 2.dp),
                     )
                 }
             },
