@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -40,6 +41,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -159,81 +161,82 @@ fun DialpadPanel(
         } else {
             Spacer(Modifier.height(8.dp))
         }
+        // Full-bleed number strip so the long-press ripple runs edge-to-edge on the panel.
+        NumberLine(
+            number = number,
+            onBackspace = {
+                number = number.dropLast(1)
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            },
+            onClear = { number = "" },
+            onPaste = { pasted -> number = pasted },
+        )
         Column(
             Modifier
                 .widthIn(max = 298.dp + 60.dp)
                 .padding(horizontal = 30.dp),
         ) {
-                NumberLine(
-                    number = number,
-                    onBackspace = {
-                        number = number.dropLast(1)
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    },
-                    onClear = { number = "" },
-                    onPaste = { pasted -> number = pasted },
-                )
-                // Chinese-ROM style shortcuts under a typed number.
-                Row(
-                    Modifier.fillMaxWidth().height(32.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (number.length >= 3) {
-                        Shortcut("Kişilere ekle") { onAddContact(number) }
-                        Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 10.dp))
-                        Shortcut("Mesaj gönder") { onMessage(number) }
-                    }
+            // Chinese-ROM style shortcuts under a typed number.
+            Row(
+                Modifier.fillMaxWidth().height(32.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (number.length >= 3) {
+                    Shortcut("Kişilere ekle") { onAddContact(number) }
+                    Text("·", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 10.dp))
+                    Shortcut("Mesaj gönder") { onMessage(number) }
                 }
+            }
 
-                Keys.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        row.forEach { (digit, letters) ->
-                            Key(
-                                digit = digit,
-                                letters = letters,
-                                voicemail = digit == '1',
-                                onClick = { press(digit) },
-                                onLongClick =
-                                    when (digit) {
-                                        '0' -> ({ number += "+" })
-                                        '1' -> if (number.isEmpty()) onVoicemail else null
-                                        else -> null
-                                    },
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        Box(
-                            Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onClose),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Outlined.KeyboardArrowDown,
-                                contentDescription = "Tuş takımını kapat",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                        MyOsFab(
-                            icon = Icons.Filled.Call,
-                            contentDescription = "Ara",
-                            onClick = { onCall(number) },
-                            size = 64.dp,
-                            iconSize = 28.dp,
-                            enabled = number.isNotEmpty(),
+            Keys.chunked(3).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    row.forEach { (digit, letters) ->
+                        Key(
+                            digit = digit,
+                            letters = letters,
+                            voicemail = digit == '1',
+                            onClick = { press(digit) },
+                            onLongClick =
+                                when (digit) {
+                                    '0' -> ({ number += "+" })
+                                    '1' -> if (number.isEmpty()) onVoicemail else null
+                                    else -> null
+                                },
+                            modifier = Modifier.weight(1f),
                         )
                     }
-                    Box(Modifier.weight(1f))
                 }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier.size(48.dp).clip(CircleShape).clickable(onClick = onClose),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = "Tuş takımını kapat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    MyOsFab(
+                        icon = Icons.Filled.Call,
+                        contentDescription = "Ara",
+                        onClick = { onCall(number) },
+                        size = 64.dp,
+                        iconSize = 28.dp,
+                        enabled = number.isNotEmpty(),
+                    )
+                }
+                Box(Modifier.weight(1f))
+            }
         }
     }
 }
@@ -256,35 +259,56 @@ private fun NumberLine(
             shown.length > 13 -> 26.sp
             else -> 32.sp
         }
-    // No ripple box on the number strip — long-press only opens the floating menu.
     val numberInteraction = remember { MutableInteractionSource() }
-    Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(48.dp))
+    Box(Modifier.fillMaxWidth().height(64.dp)) {
+        // Edge-to-edge ripple across the dial panel width.
         Box(
             Modifier
-                .weight(1f)
-                .height(56.dp)
+                .fillMaxSize()
                 .combinedClickable(
                     interactionSource = numberInteraction,
-                    indication = null,
+                    indication = ripple(bounded = true),
                     onClick = {},
                     onLongClick = { menu = true },
                 ),
+        )
+        Text(
+            text = shown,
+            fontSize = size,
+            lineHeight = size * 1.2f,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Clip,
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 56.dp),
+        )
+        Box(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp)
+                .size(48.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    enabled = number.isNotEmpty(),
+                    onClick = onBackspace,
+                    onLongClick = onClear,
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = shown,
-                fontSize = size,
-                lineHeight = size * 1.2f,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-            )
-            // Floating chip(s): icon above label (alt-üst), not the wide list popup.
+            if (number.isNotEmpty()) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.Backspace,
+                    contentDescription = "Sil",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+        // Anchor for the floating Yapıştır / Kopyala chip (centered under the number).
+        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(1.dp)) {
             DialpadClipboardPopup(
                 expanded = menu,
                 onDismiss = { menu = false },
@@ -307,26 +331,6 @@ private fun NumberLine(
                     },
                 dark = isSystemInDarkTheme(),
             )
-        }
-        Box(
-            Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .combinedClickable(
-                    enabled = number.isNotEmpty(),
-                    onClick = onBackspace,
-                    onLongClick = onClear,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (number.isNotEmpty()) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.Backspace,
-                    contentDescription = "Sil",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
         }
     }
 }
