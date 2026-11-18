@@ -160,12 +160,12 @@ object CallNotifier {
                 .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
-                // While ringing loudly, allow swipe-away (silence). After silence, pin it.
-                .setOngoing(silenced)
+                // Stay in the shade; silence is volume-only (not reject / not dismiss).
+                .setOngoing(true)
                 .setOnlyAlertOnce(silenced)
+                .setSilent(silenced)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(open)
-                .setDeleteIntent(broadcast(context, CallActionReceiver.SILENCE, call.id))
                 .setStyle(
                     NotificationCompat.CallStyle.forIncomingCall(
                         person(call),
@@ -187,10 +187,10 @@ object CallNotifier {
             .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setOngoing(silenced)
+            .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setSilent(silenced)
             .setContentIntent(openScreen(context, call.id))
-            .setDeleteIntent(broadcast(context, CallActionReceiver.SILENCE, call.id))
             .addAction(0, "Reddet", broadcast(context, CallActionReceiver.DECLINE, call.id))
             .addAction(0, "Cevapla", openScreen(context, call.id, answer = true))
             .build()

@@ -1,6 +1,5 @@
 package com.nubiaphone.dialer.telecom
 
-import android.content.BroadcastReceiver
 import android.content.Intent
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -16,14 +15,14 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * Volume keys while ringing silence the ringer even when only the notification is showing.
  */
 class CallService : InCallService() {
-    private var volumeReceiver: BroadcastReceiver? = null
+    private var volumeSilence: VolumeSilence? = null
 
     override fun onCreate() {
         super.onCreate()
         CallRegistry.service = this
         CallNotifier.attach(this)
-        volumeReceiver =
-            VolumeSilence.register(this) {
+        volumeSilence =
+            VolumeSilence.start(this) {
                 if (CallRegistry.calls.value.any { it.phase == CallPhase.Incoming }) {
                     CallNotifier.silence(this)
                 }
@@ -31,8 +30,8 @@ class CallService : InCallService() {
     }
 
     override fun onDestroy() {
-        VolumeSilence.unregister(this, volumeReceiver)
-        volumeReceiver = null
+        volumeSilence?.unregister()
+        volumeSilence = null
         if (CallRegistry.service === this) CallRegistry.service = null
         super.onDestroy()
     }

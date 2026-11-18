@@ -3,7 +3,6 @@ package com.nubiaphone.dialer.telecom
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -16,10 +15,10 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
 
 /**
  * Foreground service that hosts the unlocked fake-incoming CallStyle notification.
- * Volume keys or swipe-dismiss silence the ringtone; the notification stays for Answer/Decline.
+ * Volume keys silence the ringtone only — the notification stays (Answer / Decline remain).
  */
 class PreviewRingService : Service() {
-    private var volumeReceiver: BroadcastReceiver? = null
+    private var volumeSilence: VolumeSilence? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -37,18 +36,15 @@ class PreviewRingService : Service() {
         }
         promote(buildNotification())
         if (!IncomingPreview.silenced) IncomingPreview.startRingFromService(this)
-        if (volumeReceiver == null) {
-            volumeReceiver =
-                VolumeSilence.register(this) {
-                    IncomingPreview.silence(this)
-                }
+        if (volumeSilence == null) {
+            volumeSilence = VolumeSilence.start(this) { IncomingPreview.silence(this) }
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
-        VolumeSilence.unregister(this, volumeReceiver)
-        volumeReceiver = null
+        volumeSilence?.unregister()
+        volumeSilence = null
         IncomingPreview.stopRingFromService()
         super.onDestroy()
     }
@@ -90,24 +86,18 @@ class PreviewRingService : Service() {
                 Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_DECLINE),
                 mutable,
             )
-        val silence =
-            PendingIntent.getBroadcast(
-                this,
-                14,
-                Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_SILENCE),
-                mutable,
-            )
         return NotificationCompat.Builder(this, IncomingPreview.CH)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle("Önizleme Kişi")
             .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setOngoing(silenced)
+            // Always keep in the shade; silence only stops sound (not reject).
+            .setOngoing(true)
             .setOnlyAlertOnce(silenced)
+            .setSilent(silenced)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(open)
-            .setDeleteIntent(silence)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer))
             .build()
     }
