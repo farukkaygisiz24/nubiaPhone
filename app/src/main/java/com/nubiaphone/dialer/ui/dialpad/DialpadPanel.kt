@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -70,8 +72,6 @@ import com.nubiaphone.dialer.data.formatPhone
 import com.nubiaphone.dialer.data.mapDigitRange
 import com.nubiaphone.dialer.ui.components.ContactAvatar
 import com.nubiaphone.dialer.ui.components.MyOsFab
-import com.nubiaphone.dialer.ui.components.MyOsMenuItem
-import com.nubiaphone.dialer.ui.components.MyOsPopupMenu
 
 private val Keys =
     listOf(
@@ -240,7 +240,8 @@ private fun NumberLine(
     onPaste: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    var menu by remember { mutableStateOf(false) }
+    var actionsOpen by remember { mutableStateOf(false) }
+    val paste = remember(actionsOpen) { if (actionsOpen) clipboardNumber(context) else null }
     val shown = remember(number) { if (number.all { it.isDigit() || it == '+' } && number.length > 3) formatPhone(number) else number }
     val size =
         when {
@@ -248,70 +249,116 @@ private fun NumberLine(
             shown.length > 13 -> 26.sp
             else -> 32.sp
         }
-    Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(48.dp))
-        Box(
-            Modifier
-                .weight(1f)
-                .height(56.dp)
-                .combinedClickable(onClick = {}, onLongClick = { menu = true }),
-            contentAlignment = Alignment.Center,
+    val numberInteraction = remember { MutableInteractionSource() }
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(64.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = shown,
-                fontSize = size,
-                lineHeight = size * 1.2f,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-            )
-            MyOsPopupMenu(
-                expanded = menu,
-                onDismiss = { menu = false },
-                // Read the clipboard only while the menu is open (Android shows a toast per read).
-                items =
-                    if (!menu) {
-                        emptyList()
-                    } else buildList {
-                        clipboardNumber(context)?.let { pasted ->
-                            add(MyOsMenuItem("Yapıştır", Icons.Outlined.ContentPaste) { onPaste(pasted) })
-                        }
-                        if (number.isNotEmpty()) {
-                            add(
-                                MyOsMenuItem("Kopyala", Icons.Outlined.ContentCopy) {
-                                    com.nubiaphone.dialer.data.PhoneActions.copy(context, number)
-                                },
-                            )
-                        }
-                    },
-                dark = isSystemInDarkTheme(),
-                alignEnd = false,
-            )
-        }
-        Box(
-            Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .combinedClickable(
-                    enabled = number.isNotEmpty(),
-                    onClick = onBackspace,
-                    onLongClick = onClear,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (number.isNotEmpty()) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.Backspace,
-                    contentDescription = "Sil",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp),
+            Box(Modifier.size(48.dp))
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .combinedClickable(
+                        interactionSource = numberInteraction,
+                        indication = null,
+                        onClick = { actionsOpen = false },
+                        onLongClick = { actionsOpen = true },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = shown,
+                    fontSize = size,
+                    lineHeight = size * 1.2f,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
                 )
             }
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .combinedClickable(
+                        enabled = number.isNotEmpty(),
+                        onClick = onBackspace,
+                        onLongClick = onClear,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (number.isNotEmpty()) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.Backspace,
+                        contentDescription = "Sil",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
         }
+        if (actionsOpen && (paste != null || number.isNotEmpty())) {
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+            )
+            if (paste != null) {
+                NumberActionRow(
+                    label = "Yapıştır",
+                    icon = Icons.Outlined.ContentPaste,
+                    onClick = {
+                        onPaste(paste)
+                        actionsOpen = false
+                    },
+                )
+            }
+            if (number.isNotEmpty()) {
+                NumberActionRow(
+                    label = "Kopyala",
+                    icon = Icons.Outlined.ContentCopy,
+                    onClick = {
+                        com.nubiaphone.dialer.data.PhoneActions.copy(context, number)
+                        actionsOpen = false
+                    },
+                )
+            }
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun NumberActionRow(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 
