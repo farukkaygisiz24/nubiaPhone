@@ -25,12 +25,19 @@ object IncomingPreview {
     @Volatile var silenced: Boolean = false
         private set
 
+    /** Answered from the notification without opening the full in-call UI. */
+    @Volatile var answered: Boolean = false
+        private set
+
     @Volatile private var tone: Ringtone? = null
     @Volatile private var vibrator: Vibrator? = null
+    @Volatile private var connectedAt: Long = 0L
 
     fun launch(context: Context, kind: String) {
         val app = context.applicationContext
         silenced = false
+        answered = false
+        connectedAt = 0L
         if (kind != "incoming") {
             app.startActivity(
                 InCallActivity.intent(app).putExtra(InCallActivity.EXTRA_PREVIEW, kind),
@@ -48,14 +55,28 @@ object IncomingPreview {
     }
 
     fun silence(context: Context) {
-        if (silenced) return
+        if (silenced || answered) return
         silenced = true
         stopRingFromService(context)
         PreviewRingService.refresh(context.applicationContext)
     }
 
+    /** Answer in the shade — no full-screen UI (unlocked workflow). */
+    fun answer(context: Context) {
+        if (answered) return
+        answered = true
+        silenced = true
+        connectedAt = System.currentTimeMillis()
+        stopRingFromService(context)
+        PreviewRingService.refresh(context.applicationContext)
+    }
+
+    fun connectedAtMillis(): Long = connectedAt
+
     fun dismiss(context: Context) {
         silenced = false
+        answered = false
+        connectedAt = 0L
         stopRingFromService(context)
         runCatching { PreviewRingService.stop(context.applicationContext) }
     }

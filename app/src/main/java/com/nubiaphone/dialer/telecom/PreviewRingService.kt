@@ -14,8 +14,8 @@ import com.nubiaphone.dialer.R
 import com.nubiaphone.dialer.ui.incall.InCallActivity
 
 /**
- * Foreground service that hosts the unlocked fake-incoming CallStyle notification.
- * Volume keys silence the ringtone only — the notification stays (Answer / Decline remain).
+ * Foreground service that hosts the unlocked fake-incoming / ongoing CallStyle notification.
+ * Answer from the notification stays in the shade; tapping the notification opens the full UI.
  */
 class PreviewRingService : Service() {
     private var volumeSilence: VolumeSilence? = null
@@ -35,9 +35,15 @@ class PreviewRingService : Service() {
             }
         }
         promote(buildNotification())
-        if (!IncomingPreview.silenced) IncomingPreview.startRingFromService(this)
-        if (volumeSilence == null) {
+        if (!IncomingPreview.silenced && !IncomingPreview.answered) {
+            IncomingPreview.startRingFromService(this)
+        }
+        if (volumeSilence == null && !IncomingPreview.answered) {
             volumeSilence = VolumeSilence.start(this) { IncomingPreview.silence(this) }
+        }
+        if (IncomingPreview.answered) {
+            volumeSilence?.unregister()
+            volumeSilence = null
         }
         return START_STICKY
     }
@@ -59,9 +65,8 @@ class PreviewRingService : Service() {
 
     private fun buildNotification(): Notification {
         val mutable = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-        val silenced = IncomingPreview.silenced
         val person = Person.Builder().setName("Önizleme Kişi").setImportant(true).build()
-        val open =
+        val openIncoming =
             PendingIntent.getActivity(
                 this,
                 11,
@@ -70,13 +75,20 @@ class PreviewRingService : Service() {
                     .putExtra(InCallActivity.EXTRA_PREVIEW_SILENT, true),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        val answer =
+        val openActive =
             PendingIntent.getActivity(
                 this,
-                12,
+                15,
                 InCallActivity.intent(this)
                     .putExtra(InCallActivity.EXTRA_PREVIEW, "active")
                     .putExtra(InCallActivity.EXTRA_PREVIEW_SILENT, true),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        val answer =
+            PendingIntent.getBroadcast(
+                this,
+                12,
+                Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_ANSWER),
                 mutable,
             )
         val decline =
@@ -86,18 +98,44 @@ class PreviewRingService : Service() {
                 Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_DECLINE),
                 mutable,
             )
+        val hangUp =
+            PendingIntent.getBroadcast(
+                this,
+                16,
+                Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_DECLINE),
+                mutable,
+            )
+
+        if (IncomingPreview.answered) {
+            val connected = IncomingPreview.connectedAtMillis().coerceAtLeast(System.currentTimeMillis())
+            return NotificationCompat.Builder(this, IncomingPreview.CH)
+                .setSmallIcon(R.drawable.ic_stat_call)
+                .setContentTitle("Önizleme Kişi")
+                .setContentText("Süren arama")
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
+                .setUsesChronometer(true)
+                .setWhen(connected)
+                .setShowWhen(true)
+                .setContentIntent(openActive)
+                .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
+                .build()
+        }
+
+        val silenced = IncomingPreview.silenced
         return NotificationCompat.Builder(this, IncomingPreview.CH)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle("Önizleme Kişi")
             .setContentText(if (silenced) "Gelen arama · sessiz" else "Gelen arama")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            // Always keep in the shade; silence only stops sound (not reject).
             .setOngoing(true)
             .setOnlyAlertOnce(silenced)
             .setSilent(silenced)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setContentIntent(open)
+            .setContentIntent(openIncoming)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer))
             .build()
     }

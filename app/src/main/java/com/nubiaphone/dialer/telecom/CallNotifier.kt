@@ -170,7 +170,8 @@ object CallNotifier {
                     NotificationCompat.CallStyle.forIncomingCall(
                         person(call),
                         broadcast(context, CallActionReceiver.DECLINE, call.id),
-                        openScreen(context, call.id, answer = true),
+                        // Locked → open in-call UI; unlocked → answer in notification only.
+                        answerAction(context, call.id),
                     ),
                 )
         if (canAlert(context) && !silenced) {
@@ -178,6 +179,14 @@ object CallNotifier {
         }
         return builder.build()
     }
+
+    /** Unlocked: answer without stealing focus. Locked: open the full in-call screen. */
+    private fun answerAction(context: Context, id: Int): PendingIntent =
+        if (shouldShowIncomingUi(context)) {
+            openScreen(context, id, answer = true)
+        } else {
+            broadcast(context, CallActionReceiver.ANSWER, id)
+        }
 
     private fun incomingFallback(context: Context, call: CallUi): android.app.Notification {
         val silenced = ringerSilenced
@@ -192,7 +201,7 @@ object CallNotifier {
             .setSilent(silenced)
             .setContentIntent(openScreen(context, call.id))
             .addAction(0, "Reddet", broadcast(context, CallActionReceiver.DECLINE, call.id))
-            .addAction(0, "Cevapla", openScreen(context, call.id, answer = true))
+            .addAction(0, "Cevapla", answerAction(context, call.id))
             .build()
     }
 
