@@ -134,6 +134,8 @@ object CallRegistry {
     internal fun updateAudio(state: CallAudioState?) {
         state ?: return
         _audio.value = AudioUi(state.isMuted, state.route, state.supportedRouteMask)
+        // Refresh the ongoing notification actions (Sessiz / Hoparlör labels).
+        appContext?.let { ctx -> onChanged?.invoke(ctx, _calls.value) }
     }
 
     fun answer(id: Int) = live[id]?.answer(VideoProfile.STATE_AUDIO_ONLY)

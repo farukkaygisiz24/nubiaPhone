@@ -212,6 +212,9 @@ object CallNotifier {
                 CallPhase.Holding -> "Beklemede"
                 else -> "Süren arama"
             }
+        val audio = CallRegistry.audio.value
+        val speaker = audio.route == android.telecom.CallAudioState.ROUTE_SPEAKER
+        val person = person(call)
         return NotificationCompat.Builder(context, CH_ONGOING)
             .setSmallIcon(R.drawable.ic_stat_call)
             .setContentTitle(call.title)
@@ -228,7 +231,23 @@ object CallNotifier {
                     setShowWhen(true)
                 }
             }
-            .addAction(0, "Kapat", broadcast(context, CallActionReceiver.HANG_UP, call.id))
+            .setStyle(
+                NotificationCompat.CallStyle.forOngoingCall(
+                    person,
+                    broadcast(context, CallActionReceiver.HANG_UP, call.id),
+                ),
+            )
+            // CallStyle already shows Kapat; add the two in-call toggles beside it.
+            .addAction(
+                0,
+                if (speaker) "Kulaklık" else "Hoparlör",
+                broadcast(context, CallActionReceiver.TOGGLE_SPEAKER, call.id),
+            )
+            .addAction(
+                0,
+                if (audio.muted) "Ses aç" else "Sessiz",
+                broadcast(context, CallActionReceiver.TOGGLE_MUTE, call.id),
+            )
             .build()
     }
 }

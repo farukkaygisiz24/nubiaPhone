@@ -29,6 +29,12 @@ object IncomingPreview {
     @Volatile var answered: Boolean = false
         private set
 
+    @Volatile var muted: Boolean = false
+        private set
+
+    @Volatile var speakerOn: Boolean = false
+        private set
+
     @Volatile private var tone: Ringtone? = null
     @Volatile private var vibrator: Vibrator? = null
     @Volatile private var connectedAt: Long = 0L
@@ -37,6 +43,8 @@ object IncomingPreview {
         val app = context.applicationContext
         silenced = false
         answered = false
+        muted = false
+        speakerOn = false
         connectedAt = 0L
         if (kind != "incoming") {
             app.startActivity(
@@ -73,9 +81,21 @@ object IncomingPreview {
 
     fun connectedAtMillis(): Long = connectedAt
 
+    fun toggleMute(context: Context) {
+        muted = !muted
+        PreviewRingService.refresh(context.applicationContext)
+    }
+
+    fun toggleSpeaker(context: Context) {
+        speakerOn = !speakerOn
+        PreviewRingService.refresh(context.applicationContext)
+    }
+
     fun dismiss(context: Context) {
         silenced = false
         answered = false
+        muted = false
+        speakerOn = false
         connectedAt = 0L
         stopRingFromService(context)
         runCatching { PreviewRingService.stop(context.applicationContext) }

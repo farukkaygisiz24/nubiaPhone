@@ -26,6 +26,19 @@ class CallActionReceiver : BroadcastReceiver() {
                 val id = intent.getIntExtra(InCallActivity.EXTRA_CALL_ID, -1)
                 if (id >= 0) CallRegistry.hangUp(id)
             }
+            TOGGLE_MUTE -> {
+                val muted = !CallRegistry.audio.value.muted
+                CallRegistry.setMuted(muted)
+            }
+            TOGGLE_SPEAKER -> {
+                val speaker = CallRegistry.audio.value.route == android.telecom.CallAudioState.ROUTE_SPEAKER
+                CallRegistry.setRoute(
+                    if (speaker) android.telecom.CallAudioState.ROUTE_EARPIECE
+                    else android.telecom.CallAudioState.ROUTE_SPEAKER,
+                )
+            }
+            PREVIEW_TOGGLE_MUTE -> IncomingPreview.toggleMute(context)
+            PREVIEW_TOGGLE_SPEAKER -> IncomingPreview.toggleSpeaker(context)
         }
     }
 
@@ -34,8 +47,12 @@ class CallActionReceiver : BroadcastReceiver() {
         const val DECLINE = "com.nubiaphone.dialer.DECLINE"
         const val HANG_UP = "com.nubiaphone.dialer.HANG_UP"
         const val SILENCE = "com.nubiaphone.dialer.SILENCE"
+        const val TOGGLE_MUTE = "com.nubiaphone.dialer.TOGGLE_MUTE"
+        const val TOGGLE_SPEAKER = "com.nubiaphone.dialer.TOGGLE_SPEAKER"
         const val PREVIEW_SILENCE = "com.nubiaphone.dialer.PREVIEW_SILENCE"
         const val PREVIEW_DECLINE = "com.nubiaphone.dialer.PREVIEW_DECLINE"
         const val PREVIEW_ANSWER = "com.nubiaphone.dialer.PREVIEW_ANSWER"
+        const val PREVIEW_TOGGLE_MUTE = "com.nubiaphone.dialer.PREVIEW_TOGGLE_MUTE"
+        const val PREVIEW_TOGGLE_SPEAKER = "com.nubiaphone.dialer.PREVIEW_TOGGLE_SPEAKER"
     }
 }

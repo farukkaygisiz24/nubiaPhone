@@ -108,6 +108,20 @@ class PreviewRingService : Service() {
 
         if (IncomingPreview.answered) {
             val connected = IncomingPreview.connectedAtMillis().coerceAtLeast(System.currentTimeMillis())
+            val mute =
+                PendingIntent.getBroadcast(
+                    this,
+                    17,
+                    Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_TOGGLE_MUTE),
+                    mutable,
+                )
+            val speaker =
+                PendingIntent.getBroadcast(
+                    this,
+                    18,
+                    Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_TOGGLE_SPEAKER),
+                    mutable,
+                )
             return NotificationCompat.Builder(this, IncomingPreview.CH)
                 .setSmallIcon(R.drawable.ic_stat_call)
                 .setContentTitle("Önizleme Kişi")
@@ -121,6 +135,8 @@ class PreviewRingService : Service() {
                 .setShowWhen(true)
                 .setContentIntent(openActive)
                 .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
+                .addAction(0, if (IncomingPreview.speakerOn) "Kulaklık" else "Hoparlör", speaker)
+                .addAction(0, if (IncomingPreview.muted) "Ses aç" else "Sessiz", mute)
                 .build()
         }
 
