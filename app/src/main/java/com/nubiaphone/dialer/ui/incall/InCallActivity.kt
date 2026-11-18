@@ -63,9 +63,14 @@ class InCallActivity : ComponentActivity() {
         enableEdgeToEdge()
         handleAnswer(intent)
         val preview = intent.getStringExtra(EXTRA_PREVIEW)
+        val silent = intent.getBooleanExtra(EXTRA_PREVIEW_SILENT, false)
+        if (preview != null) {
+            // Opened from the unlocked notification — stop the heads-up ringtone.
+            com.nubiaphone.dialer.telecom.IncomingPreview.dismiss(this)
+        }
         setContent {
             NubiaPhoneTheme {
-                if (preview != null) Preview(preview) else Live()
+                if (preview != null) Preview(preview, ring = !silent && preview == "incoming") else Live()
             }
         }
     }
@@ -200,7 +205,7 @@ class InCallActivity : ComponentActivity() {
      * swap, Özel and Çıkar all play out on these fakes.
      */
     @Composable
-    private fun Preview(kind: String) {
+    private fun Preview(kind: String, ring: Boolean = kind == "incoming") {
         data class Fake(val id: Int, val name: String, val number: String, val phase: CallPhase, val connect: Long)
         val now = System.currentTimeMillis()
         val first = Fake(1, "Önizleme Kişi", "+905321234567", CallPhase.Active, now - 83_000)
@@ -224,7 +229,7 @@ class InCallActivity : ComponentActivity() {
         var muted by remember { mutableStateOf(false) }
         var route by remember { mutableStateOf(CallAudioState.ROUTE_EARPIECE) }
         var nextId by remember { mutableStateOf(10) }
-        var ringOn by remember { mutableStateOf(kind == "incoming") }
+        var ringOn by remember { mutableStateOf(ring) }
 
         // Preview incoming: default ringtone + vibrate until silence / answer / decline.
         DisposableEffect(ringOn) {
@@ -381,6 +386,8 @@ class InCallActivity : ComponentActivity() {
         const val ACTION_ANSWER = "com.nubiaphone.dialer.ANSWER"
         const val EXTRA_CALL_ID = "call_id"
         const val EXTRA_PREVIEW = "preview"
+        /** When true, preview does not start its own ringtone (notification already rang). */
+        const val EXTRA_PREVIEW_SILENT = "preview_silent"
         private const val CONF_ID = -1
 
         fun intent(context: Context): Intent =

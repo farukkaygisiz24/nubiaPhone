@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.nubiaphone.dialer.ui.incall.InCallActivity
+import com.nubiaphone.dialer.telecom.IncomingPreview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.nubiaphone.dialer.ui.navigation.NubiaPhoneNav
 import com.nubiaphone.dialer.ui.theme.NubiaPhoneTheme
@@ -68,10 +68,13 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         intent ?: return
-        // Developer check of the call screen without a real call:
+        // Developer check without a real call (incoming respects lock → UI / unlock → notification):
         // adb shell am start -n com.nubiaphone.dialer/.MainActivity --es incall_preview incoming|active|dialing|two|conference
         intent.getStringExtra("incall_preview")?.let { kind ->
-            startActivity(InCallActivity.intent(this).putExtra(InCallActivity.EXTRA_PREVIEW, kind))
+            IncomingPreview.launch(this, kind)
+            if (kind == "incoming" && !com.nubiaphone.dialer.telecom.CallNotifier.shouldShowIncomingUi(this)) {
+                moveTaskToBack(true)
+            }
             return
         }
         intent.getStringExtra("snackbar_preview")?.let { DevHooks.snackbar.value = it }
