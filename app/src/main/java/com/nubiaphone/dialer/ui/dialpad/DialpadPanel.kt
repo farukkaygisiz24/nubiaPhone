@@ -52,8 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -64,14 +64,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.nubiaphone.dialer.data.CallLogStore
 import com.nubiaphone.dialer.data.ContactsStore
 import com.nubiaphone.dialer.data.formatPhone
 import com.nubiaphone.dialer.data.mapDigitRange
 import com.nubiaphone.dialer.ui.components.ContactAvatar
 import com.nubiaphone.dialer.ui.components.MyOsFab
+import com.nubiaphone.dialer.ui.components.MyOsMenuItem
 
 private val Keys =
     listOf(
@@ -240,8 +248,7 @@ private fun NumberLine(
     onPaste: (String) -> Unit,
 ) {
     val context = LocalContext.current
-    var actionsOpen by remember { mutableStateOf(false) }
-    val paste = remember(actionsOpen) { if (actionsOpen) clipboardNumber(context) else null }
+    var menu by remember { mutableStateOf(false) }
     val shown = remember(number) { if (number.all { it.isDigit() || it == '+' } && number.length > 3) formatPhone(number) else number }
     val size =
         when {
@@ -249,116 +256,153 @@ private fun NumberLine(
             shown.length > 13 -> 26.sp
             else -> 32.sp
         }
+    // No ripple box on the number strip — long-press only opens the floating menu.
     val numberInteraction = remember { MutableInteractionSource() }
-    Column(Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Row(
+        modifier = Modifier.fillMaxWidth().height(64.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(48.dp))
+        Box(
+            Modifier
+                .weight(1f)
+                .height(56.dp)
+                .combinedClickable(
+                    interactionSource = numberInteraction,
+                    indication = null,
+                    onClick = {},
+                    onLongClick = { menu = true },
+                ),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.size(48.dp))
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .combinedClickable(
-                        interactionSource = numberInteraction,
-                        indication = null,
-                        onClick = { actionsOpen = false },
-                        onLongClick = { actionsOpen = true },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = shown,
-                    fontSize = size,
-                    lineHeight = size * 1.2f,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                )
-            }
-            Box(
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .combinedClickable(
-                        enabled = number.isNotEmpty(),
-                        onClick = onBackspace,
-                        onLongClick = onClear,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (number.isNotEmpty()) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.Backspace,
-                        contentDescription = "Sil",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
+            Text(
+                text = shown,
+                fontSize = size,
+                lineHeight = size * 1.2f,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+            // Floating chip(s): icon above label (alt-üst), not the wide list popup.
+            DialpadClipboardPopup(
+                expanded = menu,
+                onDismiss = { menu = false },
+                items =
+                    if (!menu) {
+                        emptyList()
+                    } else {
+                        buildList {
+                            clipboardNumber(context)?.let { pasted ->
+                                add(MyOsMenuItem("Yapıştır", Icons.Outlined.ContentPaste) { onPaste(pasted) })
+                            }
+                            if (number.isNotEmpty()) {
+                                add(
+                                    MyOsMenuItem("Kopyala", Icons.Outlined.ContentCopy) {
+                                        com.nubiaphone.dialer.data.PhoneActions.copy(context, number)
+                                    },
+                                )
+                            }
+                        }
+                    },
+                dark = isSystemInDarkTheme(),
+            )
         }
-        if (actionsOpen && (paste != null || number.isNotEmpty())) {
-            HorizontalDivider(
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-            )
-            if (paste != null) {
-                NumberActionRow(
-                    label = "Yapıştır",
-                    icon = Icons.Outlined.ContentPaste,
-                    onClick = {
-                        onPaste(paste)
-                        actionsOpen = false
-                    },
-                )
-            }
+        Box(
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    enabled = number.isNotEmpty(),
+                    onClick = onBackspace,
+                    onLongClick = onClear,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
             if (number.isNotEmpty()) {
-                NumberActionRow(
-                    label = "Kopyala",
-                    icon = Icons.Outlined.ContentCopy,
-                    onClick = {
-                        com.nubiaphone.dialer.data.PhoneActions.copy(context, number)
-                        actionsOpen = false
-                    },
+                Icon(
+                    Icons.AutoMirrored.Outlined.Backspace,
+                    contentDescription = "Sil",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            HorizontalDivider(
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-            )
         }
     }
 }
 
+/**
+ * Floating clipboard actions under the number: each action is icon-over-label (alt-üst),
+ * not a wide list row. Stays a popup bubble over the keypad.
+ */
 @Composable
-private fun NumberActionRow(
-    label: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
+private fun DialpadClipboardPopup(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    items: List<MyOsMenuItem>,
+    dark: Boolean,
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+    if (!expanded || items.isEmpty()) return
+    val bg = if (dark) Color(0xFF232323) else Color.White
+    val fg = if (dark) Color.White.copy(alpha = 0.9f) else Color(0xFF1A1A1A)
+    val shape = RoundedCornerShape(16.dp)
+    val position =
+        remember {
+            object : PopupPositionProvider {
+                override fun calculatePosition(
+                    anchorBounds: IntRect,
+                    windowSize: IntSize,
+                    layoutDirection: LayoutDirection,
+                    popupContentSize: IntSize,
+                ): IntOffset {
+                    val x = anchorBounds.left + (anchorBounds.width - popupContentSize.width) / 2
+                    val y = anchorBounds.bottom
+                    return IntOffset(
+                        x.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0)),
+                        y.coerceIn(0, (windowSize.height - popupContentSize.height).coerceAtLeast(0)),
+                    )
+                }
+            }
+        }
+    Popup(
+        popupPositionProvider = position,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
     ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Row(
+            Modifier
+                .padding(8.dp)
+                .then(
+                    if (dark) {
+                        Modifier
+                    } else {
+                        Modifier.shadow(12.dp, shape, ambientColor = Color(0x33000000), spotColor = Color(0x33000000))
+                    },
+                )
+                .clip(shape)
+                .background(bg)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            items.forEach { item ->
+                Column(
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            onDismiss()
+                            item.onClick()
+                        }
+                        .padding(horizontal = 18.dp, vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    if (item.icon != null) {
+                        Icon(item.icon, contentDescription = null, tint = fg, modifier = Modifier.size(22.dp))
+                        Spacer(Modifier.height(6.dp))
+                    }
+                    Text(item.label, style = MaterialTheme.typography.labelLarge, color = fg)
+                }
+            }
+        }
     }
 }
 
