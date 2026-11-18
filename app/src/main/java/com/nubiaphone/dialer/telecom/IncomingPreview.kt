@@ -12,7 +12,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import com.nubiaphone.dialer.ui.incall.InCallActivity
-import com.nubiaphone.dialer.ui.incall.IncomingHeadsUpActivity
 
 /**
  * Dev / adb fake incoming call that follows the same lock policy as a real ring:
@@ -45,7 +44,6 @@ object IncomingPreview {
             )
         } else {
             PreviewRingService.start(app)
-            app.startActivity(IncomingHeadsUpActivity.intentPreview(app))
         }
     }
 
@@ -54,7 +52,6 @@ object IncomingPreview {
         silenced = true
         stopRingFromService(context)
         PreviewRingService.refresh(context.applicationContext)
-        runCatching { IncomingHeadsUpActivity.finishExisting(context.applicationContext) }
     }
 
     fun dismiss(context: Context) {

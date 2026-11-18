@@ -73,14 +73,6 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.NubiaPhone" />
 
-        <activity
-            android:name=".ui.incall.IncomingHeadsUpActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/Theme.NubiaPhone.HeadsUp" />
-
         <!-- Telecom binds this while nubiaPhone is the default phone app. Ringing stays with
              Telecom (no IN_CALL_SERVICE_RINGING), so the phone always rings. -->
         <service

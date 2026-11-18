@@ -48,9 +48,6 @@ object CallNotifier {
         ringerSilenced = true
         CallRegistry.silenceRinger(context)
         appUpdate(context)
-        runCatching {
-            com.nubiaphone.dialer.ui.incall.IncomingHeadsUpActivity.finishExisting(context.applicationContext)
-        }
     }
 
     private fun appUpdate(context: Context) {

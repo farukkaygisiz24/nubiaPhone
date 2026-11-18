@@ -16,15 +16,4 @@
         <item name="postSplashScreenTheme">@style/Theme.NubiaPhone</item>
     </style>
 
-    <!-- Top call banner while unlocked: transparent window, only the card captures touches. -->
-    <style name="Theme.NubiaPhone.HeadsUp" parent="Theme.NubiaPhone">
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:backgroundDimEnabled">false</item>
-        <item name="android:windowAnimationStyle">@null</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
-    </style>
 </resources>
