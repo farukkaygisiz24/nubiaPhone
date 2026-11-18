@@ -19,8 +19,8 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
 
 /**
  * Call notifications. Incoming: CallStyle with Reddet / Cevapla.
- * Unlocked + screen on → full in-call UI (activity / full-screen intent).
- * Keyguard locked (or screen off) → heads-up / lock-screen notification only.
+ * Keyguard locked (or screen off) → full in-call UI (activity / full-screen intent).
+ * Unlocked + screen on → heads-up notification only (no takeover).
  * Ongoing: name + running timer + "Kapat". Ringing sound stays with Telecom.
  */
 object CallNotifier {
@@ -35,18 +35,18 @@ object CallNotifier {
     }
 
     /**
-     * Show the full incoming call screen only when the user is already in the phone
-     * (screen interactive and keyguard not locked). Otherwise stay on the notification.
+     * Full incoming UI when the phone is locked or the screen is off — so a ring wakes into
+     * the slide-to-answer screen. While unlocked and using the phone, stay on a notification.
      */
     fun shouldShowIncomingUi(context: Context): Boolean {
         val km = context.getSystemService(KeyguardManager::class.java)
-        if (km?.isKeyguardLocked == true) return false
+        if (km?.isKeyguardLocked == true) return true
         val pm = context.getSystemService(PowerManager::class.java)
-        if (pm?.isInteractive == false) return false
-        return true
+        if (pm?.isInteractive == false) return true
+        return false
     }
 
-    /** True when an incoming call can use a full-screen intent (permission + unlocked). */
+    /** True when an incoming call may post a full-screen intent (permission + locked/off). */
     fun canAlert(context: Context): Boolean {
         if (!shouldShowIncomingUi(context)) return false
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
@@ -143,7 +143,7 @@ object CallNotifier {
                         openScreen(context, call.id, answer = true),
                     ),
                 )
-        // Full-screen takeover only while unlocked; on the lock screen stay as a notification.
+        // Full-screen takeover while locked/off; unlocked stays notification-only.
         if (canAlert(context)) {
             builder.setFullScreenIntent(open, true)
         }

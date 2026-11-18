@@ -11,7 +11,7 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * stays with Telecom (no IN_CALL_SERVICE_RINGING in the manifest), so a crash here can never
  * leave the phone silent.
  *
- * Incoming: full UI when unlocked + screen on; notification only when the keyguard is up.
+ * Incoming: full UI when locked/screen-off; notification only while unlocked.
  * Outgoing / SIM pick: open the in-call screen directly.
  */
 class CallService : InCallService() {
