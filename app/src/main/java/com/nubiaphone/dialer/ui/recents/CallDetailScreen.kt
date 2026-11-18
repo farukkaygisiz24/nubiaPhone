@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.outlined.Block
 import com.nubiaphone.dialer.data.BlockedNumbers
@@ -222,11 +223,15 @@ internal fun HistoryRow(call: CallEntry) {
                 callTypeLabel(call.type),
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (missed) tint else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 longDateTime(call.dateMillis),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         // Missed/rejected rows carry the ring time on this ROM; only talk time is shown.
@@ -235,6 +240,8 @@ internal fun HistoryRow(call: CallEntry) {
                 formatDuration(call.durationSec),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }

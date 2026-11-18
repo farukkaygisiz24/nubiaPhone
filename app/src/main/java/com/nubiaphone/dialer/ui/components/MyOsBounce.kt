@@ -70,12 +70,22 @@ fun Modifier.myOsBounce(): Modifier =
         myOsBounce(state)
     }
 
-/** Same bounce, with a shared [state] so callers can react to overscroll (e.g. grow a header). */
-fun Modifier.myOsBounce(state: MyOsBounceState): Modifier =
+/**
+ * Same bounce, with a shared [state] so callers can react to overscroll (e.g. grow a header).
+ * When [translateTop] is false, a pull-down at the top does not slide the list (the host can
+ * grow a header instead); bottom overscroll still bounces.
+ */
+fun Modifier.myOsBounce(
+    state: MyOsBounceState,
+    translateTop: Boolean = true,
+): Modifier =
     this
         .clipToBounds()
         .nestedScroll(state.connection)
-        .graphicsLayer { translationY = state.connection.offset.value }
+        .graphicsLayer {
+            val y = state.connection.offset.value
+            translationY = if (translateTop) y else y.coerceAtMost(0f)
+        }
 
 internal class BounceConnection(
     private val scope: CoroutineScope,

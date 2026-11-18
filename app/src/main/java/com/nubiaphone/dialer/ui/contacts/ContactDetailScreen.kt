@@ -20,9 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.filled.Star
@@ -52,12 +50,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.nubiaphone.dialer.data.CallLogStore
 import com.nubiaphone.dialer.data.ContactDetail
 import com.nubiaphone.dialer.data.ContactsStore
@@ -167,39 +165,48 @@ fun ContactDetailScreen(
                     c.phones.flatMap { CallLogStore.callsFor(it.number) }.distinctBy { it.id }.sortedByDescending { it.dateMillis }.take(5)
                 }
             val bounce = rememberMyOsBounce()
-            // Pull-down at top: grow avatar + name into the bounce gap (0 → ~1).
+            // Pull-down grows the pinned header (avatar stays fully visible — never clipped mid-circle).
             val pull = (bounce.offset.coerceAtLeast(0f) / bounce.maxDragPx).coerceIn(0f, 1f)
+            val avatarSize = 72.dp + 40.dp * pull
+            val nameSize = (21f + 6f * pull).sp
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                ContactAvatar(photoUri = c.photoUri, name = c.name, size = avatarSize)
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    c.name,
+                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = nameSize, lineHeight = nameSize * 1.25f),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                c.accountLabel?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).myOsBounce(bounce),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .myOsBounce(bounce, translateTop = false),
                 contentPadding = PaddingValues(bottom = 32.dp),
             ) {
-                item(key = "head") {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 20.dp)
-                            .graphicsLayer {
-                                val scale = 1f + 0.48f * pull
-                                scaleX = scale
-                                scaleY = scale
-                                // Grow upward into the empty bounce band under the top bar.
-                                transformOrigin = TransformOrigin(0.5f, 1f)
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        ContactAvatar(photoUri = c.photoUri, name = c.name, size = 72.dp)
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            c.name,
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                        )
-                        c.accountLabel?.let {
-                            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
                 val primary = c.phones.firstOrNull()?.number
                 if (primary != null || c.emails.isNotEmpty()) {
                     item(key = "actions") {
@@ -351,8 +358,20 @@ private fun InfoRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(primary, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Text(secondary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                primary,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                secondary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         if (trailing != null) {
             Box(
