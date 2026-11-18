@@ -36,10 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -142,29 +146,46 @@ fun SlideToAnswer(
     }
 }
 
-/** Hint text with a light band sweeping across it, like the iOS lock screen. */
+/** Hint text with a bright band sweeping left → right, like the iOS lock-screen slide hint. */
 @Composable
 private fun ShimmerHint(text: String, modifier: Modifier) {
     val base = MaterialTheme.colorScheme.onSurfaceVariant
-    val shine = MaterialTheme.colorScheme.onSurface
     val sweep by rememberInfiniteTransition(label = "shimmer").animateFloat(
-        initialValue = -300f,
-        targetValue = 900f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing)),
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing)),
         label = "shimmerX",
     )
     Text(
         text,
-        modifier = modifier,
+        modifier =
+            modifier
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                .drawWithContent {
+                    drawContent()
+                    val band = size.width * 0.42f
+                    val x = -band + (size.width + band * 2f) * sweep
+                    drawRect(
+                        brush =
+                            Brush.linearGradient(
+                                colorStops =
+                                    arrayOf(
+                                        0f to Color.Transparent,
+                                        0.35f to Color.White.copy(alpha = 0.15f),
+                                        0.5f to Color.White.copy(alpha = 0.85f),
+                                        0.65f to Color.White.copy(alpha = 0.15f),
+                                        1f to Color.Transparent,
+                                    ),
+                                start = Offset(x, 0f),
+                                end = Offset(x + band, 0f),
+                            ),
+                        blendMode = BlendMode.SrcAtop,
+                    )
+                },
         style =
             TextStyle(
                 fontSize = 17.sp,
-                brush =
-                    Brush.linearGradient(
-                        colors = listOf(base, shine, base),
-                        start = Offset(sweep, 0f),
-                        end = Offset(sweep + 260f, 0f),
-                    ),
+                color = base,
             ),
     )
 }

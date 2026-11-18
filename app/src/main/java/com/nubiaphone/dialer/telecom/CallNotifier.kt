@@ -1,6 +1,7 @@
 package com.nubiaphone.dialer.telecom
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -8,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
@@ -16,9 +18,10 @@ import com.nubiaphone.dialer.R
 import com.nubiaphone.dialer.ui.incall.InCallActivity
 
 /**
- * Call notifications. Incoming: CallStyle with Reddet / Cevapla and a full-screen intent (opens
- * the in-call screen over the lock screen). Ongoing: name + running timer + "Kapat".
- * Ringing sound stays with Telecom, so the incoming channel is silent.
+ * Call notifications. Incoming: CallStyle with Reddet / Cevapla.
+ * Unlocked + screen on → full in-call UI (activity / full-screen intent).
+ * Keyguard locked (or screen off) → heads-up / lock-screen notification only.
+ * Ongoing: name + running timer + "Kapat". Ringing sound stays with Telecom.
  */
 object CallNotifier {
     private const val CH_INCOMING = "incoming_call"
@@ -31,8 +34,21 @@ object CallNotifier {
         CallRegistry.onChanged = { ctx, calls -> update(ctx, calls) }
     }
 
-    /** True when an incoming call can show its full-screen notification. */
+    /**
+     * Show the full incoming call screen only when the user is already in the phone
+     * (screen interactive and keyguard not locked). Otherwise stay on the notification.
+     */
+    fun shouldShowIncomingUi(context: Context): Boolean {
+        val km = context.getSystemService(KeyguardManager::class.java)
+        if (km?.isKeyguardLocked == true) return false
+        val pm = context.getSystemService(PowerManager::class.java)
+        if (pm?.isInteractive == false) return false
+        return true
+    }
+
+    /** True when an incoming call can use a full-screen intent (permission + unlocked). */
     fun canAlert(context: Context): Boolean {
+        if (!shouldShowIncomingUi(context)) return false
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
         if (Build.VERSION.SDK_INT >= 34) {
             val nm = context.getSystemService(NotificationManager::class.java)
@@ -109,7 +125,7 @@ object CallNotifier {
         )
 
     private fun incoming(context: Context, call: CallUi): android.app.Notification {
-        val full = openScreen(context, call.id)
+        val open = openScreen(context, call.id)
         val builder =
             NotificationCompat.Builder(context, CH_INCOMING)
                 .setSmallIcon(R.drawable.ic_stat_call)
@@ -119,8 +135,7 @@ object CallNotifier {
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setOngoing(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setContentIntent(full)
-                .setFullScreenIntent(full, true)
+                .setContentIntent(open)
                 .setStyle(
                     NotificationCompat.CallStyle.forIncomingCall(
                         person(call),
@@ -128,6 +143,10 @@ object CallNotifier {
                         openScreen(context, call.id, answer = true),
                     ),
                 )
+        // Full-screen takeover only while unlocked; on the lock screen stay as a notification.
+        if (canAlert(context)) {
+            builder.setFullScreenIntent(open, true)
+        }
         return builder.build()
     }
 

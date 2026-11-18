@@ -11,8 +11,8 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * stays with Telecom (no IN_CALL_SERVICE_RINGING in the manifest), so a crash here can never
  * leave the phone silent.
  *
- * Incoming calls are shown through the full-screen notification ([CallNotifier]); outgoing
- * calls open the in-call screen directly (a system-bound InCallService may start activities).
+ * Incoming: full UI when unlocked + screen on; notification only when the keyguard is up.
+ * Outgoing / SIM pick: open the in-call screen directly.
  */
 class CallService : InCallService() {
     override fun onCreate() {
@@ -32,9 +32,7 @@ class CallService : InCallService() {
         val showNow =
             phase == CallPhase.Dialing ||
                 phase == CallPhase.SelectAccount ||
-                // Incoming normally comes up through the full-screen notification; without it
-                // (notifications or full-screen intents not allowed) open the screen directly.
-                (phase == CallPhase.Incoming && !CallNotifier.canAlert(this))
+                (phase == CallPhase.Incoming && CallNotifier.shouldShowIncomingUi(this))
         if (showNow) startActivity(InCallActivity.intent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.automirrored.outlined.CallMerge
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,6 +64,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -129,6 +132,15 @@ fun InCallScreen(
     var dtmf by rememberSaveable(primary.id) { mutableStateOf("") }
     var replies by rememberSaveable(primary.id) { mutableStateOf(false) }
     var adding by rememberSaveable { mutableStateOf(false) }
+    var silenced by rememberSaveable(primary.id) { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val silenceThresholdPx = with(density) { 56.dp.toPx() }
+
+    fun silenceNow() {
+        if (silenced) return
+        silenced = true
+        actions.silence()
+    }
 
     Box(Modifier.fillMaxSize()) {
     Column(
@@ -137,7 +149,27 @@ fun InCallScreen(
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 16.dp)
+            // Incoming: swipe up anywhere (except the answer slider) to mute the ringtone.
+            .then(
+                if (primary.phase == CallPhase.Incoming && !silenced) {
+                    Modifier.pointerInput(primary.id) {
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onVerticalDrag = { change, amount ->
+                                dragged += amount
+                                if (dragged <= -silenceThresholdPx) {
+                                    change.consume()
+                                    silenceNow()
+                                }
+                            },
+                        )
+                    }
+                } else {
+                    Modifier
+                },
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (other != null && other.phase != CallPhase.Ended) {
@@ -186,7 +218,14 @@ fun InCallScreen(
         Spacer(Modifier.weight(1f))
 
         when (primary.phase) {
-            CallPhase.Incoming -> IncomingControls(primary, actions, onReplies = { replies = true })
+            CallPhase.Incoming ->
+                IncomingControls(
+                    call = primary,
+                    actions = actions,
+                    silenced = silenced,
+                    onSilence = { silenceNow() },
+                    onReplies = { replies = true },
+                )
             CallPhase.SelectAccount -> AccountChooser(accounts) { actions.selectAccount(primary.id, it) }
             CallPhase.Ended -> Spacer(Modifier.height(ButtonSize + 48.dp))
             else -> {
@@ -305,15 +344,13 @@ private fun OtherCallStrip(other: CallUi, onSwap: () -> Unit) {
 private fun IncomingControls(
     call: CallUi,
     actions: InCallActions,
+    silenced: Boolean,
+    onSilence: () -> Unit,
     onReplies: () -> Unit,
 ) {
-    var silenced by remember(call.id) { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().widthIn(max = 420.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
         Control("Mesaj", Icons.AutoMirrored.Outlined.Message, on = false, enabled = !call.hidden, onClick = onReplies)
-        Control(if (silenced) "Sessiz" else "Sessize al", Icons.AutoMirrored.Outlined.VolumeOff, on = silenced) {
-            silenced = true
-            actions.silence()
-        }
+        Control(if (silenced) "Sessiz" else "Sessize al", Icons.AutoMirrored.Outlined.VolumeOff, on = silenced, onClick = onSilence)
         Labeled("Meşgul", Modifier.width(88.dp)) {
             RoundButton(Icons.Filled.CallEnd, "Meşgul", fill = myOsDanger(), tint = Color.White) { actions.decline(call.id) }
         }
