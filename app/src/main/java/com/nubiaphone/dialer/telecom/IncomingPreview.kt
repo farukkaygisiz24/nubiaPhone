@@ -76,6 +76,8 @@ object IncomingPreview {
             return
         }
         val person = Person.Builder().setName("Önizleme Kişi").setImportant(true).build()
+        // CallStyle requires mutable answer/decline PendingIntents (Android 12+).
+        val mutable = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
         val open =
             PendingIntent.getActivity(
                 context,
@@ -92,14 +94,14 @@ object IncomingPreview {
                 InCallActivity.intent(context)
                     .putExtra(InCallActivity.EXTRA_PREVIEW, "active")
                     .putExtra(InCallActivity.EXTRA_PREVIEW_SILENT, true),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                mutable,
             )
         val decline =
             PendingIntent.getBroadcast(
                 context,
                 13,
                 Intent(context, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_DECLINE),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                mutable,
             )
         val notification =
             NotificationCompat.Builder(context, CH)
