@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-11-18  
 **Kapsam:** `nubiaPhone` (`com.nubiaphone.dialer`) + `nubiaSMS` / aramalr (`com.nubiasms.messages`)  
-**Durum:** onay bekliyor
+**Durum:** onaylandı (2026-11-18)
 
 ## Intent
 

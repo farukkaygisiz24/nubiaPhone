@@ -8,6 +8,27 @@ uygulaması**. Kardeş proje: **nubiaSMS** (`../Projects/aramalr`).
 >
 > Derleme: `./gradlew :app:assembleRelease && adb install -r app/build/outputs/apk/release/app-release.apk` (JDK 17).
 
+## Güncellemeler (GitHub Releases)
+
+Uygulama public GitHub Release’lerden kendini günceller (`update.json` + `nubiaphone-release.apk`).
+
+1. `local.properties` içine repo bilgisini yaz:
+   ```
+   update.github.owner=SENIN_GITHUB_KULLANICI
+   update.github.repo=nubiaPhone
+   update.apk.asset=nubiaphone-release.apk
+   ```
+2. Kalıcı imza için kökte `keystore.properties` (gitignore’lı):
+   ```
+   KEYSTORE_FILE=release.jks
+   KEYSTORE_PASSWORD=...
+   KEY_ALIAS=...
+   KEY_PASSWORD=...
+   ```
+   İlk release-imzalı sürüm, eski debug-imzalı kurulumun üstüne yazılmaz; bir kez kaldırıp yeniden kur.
+3. Her yayın: `versionCode` artır → tag `v0.0.2` push → Actions Release oluşturur.
+4. Arkadaşın ilk kurulumu: Release sayfasındaki APK + “bilinmeyen kaynak / bu uygulamadan yükle”.
+
 ## Hedef
 
 - Telefon (dialer) uygulamasının yerine **varsayılan telefon uygulaması** olarak çalışmak

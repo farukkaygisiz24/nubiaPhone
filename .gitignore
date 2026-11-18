@@ -14,6 +14,10 @@ captures/
 *.aab
 *.dex
 *.class
+*.jks
+*.keystore
+keystore.properties
+.superpowers/
 
 
 
