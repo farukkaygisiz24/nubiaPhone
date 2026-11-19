@@ -12,7 +12,7 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
  * leave the phone silent.
  *
  * Incoming: full UI when locked/screen-off; notification only while unlocked.
- * Volume keys while ringing silence the ringer even when only the notification is showing.
+ * Volume keys while ringing: only a real STREAM_RING decrease silences (see VolumeSilence).
  */
 class CallService : InCallService() {
     private var volumeSilence: VolumeSilence? = null

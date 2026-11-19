@@ -16,6 +16,7 @@ import com.nubiaphone.dialer.ui.incall.InCallActivity
 /**
  * Foreground service that hosts the unlocked fake-incoming / ongoing CallStyle notification.
  * Answer from the notification stays in the shade; tapping the notification opens the full UI.
+ * VolumeSilence here only reacts to a real STREAM_RING decrease (not OEM ring-start writes).
  */
 class PreviewRingService : Service() {
     private var volumeSilence: VolumeSilence? = null
@@ -122,21 +123,25 @@ class PreviewRingService : Service() {
                     Intent(this, CallActionReceiver::class.java).setAction(CallActionReceiver.PREVIEW_TOGGLE_SPEAKER),
                     mutable,
                 )
-            return NotificationCompat.Builder(this, IncomingPreview.CH)
+            // Dedicated ongoing channel + CallStyle — stays pinned for the whole preview call.
+            return NotificationCompat.Builder(this, IncomingPreview.CH_ONGOING)
                 .setSmallIcon(R.drawable.ic_stat_call)
                 .setContentTitle("Önizleme Kişi")
                 .setContentText("Süren arama")
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setOngoing(true)
+                .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
                 .setSilent(true)
                 .setUsesChronometer(true)
                 .setWhen(connected)
                 .setShowWhen(true)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentIntent(openActive)
+                .setStyle(NotificationCompat.CallStyle.forOngoingCall(person, hangUp))
                 .addAction(0, if (IncomingPreview.speakerOn) "Kulaklık" else "Hoparlöre al", speaker)
                 .addAction(0, if (IncomingPreview.muted) "Mic. aç" else "Mic. sessiz", mute)
-                .addAction(0, "Kapat", hangUp)
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
                 .build()
         }
 
@@ -148,11 +153,13 @@ class PreviewRingService : Service() {
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setOngoing(true)
+            .setAutoCancel(false)
             .setOnlyAlertOnce(silenced)
             .setSilent(silenced)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openIncoming)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer))
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
 
